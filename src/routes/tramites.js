@@ -69,4 +69,37 @@ router.post('/', authMiddleware, (req, res) => {
   const { cliente_id, servicio_id, fecha_vencimiento, precio, notas } = req.body;
   if (!cliente_id || !servicio_id)
     return res.status(400).json({ error: 'Cliente y servicio requeridos' });
-  const result = run
+  const result = run(
+    `INSERT INTO tramites (cliente_id, servicio_id, asesor_id, fecha_vencimiento, precio, notas)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [cliente_id, servicio_id, req.usuario.id,
+     fecha_vencimiento||null, precio||null, notas||null]);
+  run('INSERT INTO actividades (tramite_id, usuario_id, descripcion, tipo) VALUES (?, ?, ?, ?)',
+    [result.lastInsertRowid, req.usuario.id, 'Trámite creado', 'sistema']);
+  res.status(201).json({ id: result.lastInsertRowid, mensaje: 'Trámite creado' });
+});
+
+router.put('/:id/estado', authMiddleware, (req, res) => {
+  const { estado, notas } = req.body;
+  const estados = ['iniciado','en_proceso','revision','completado','cancelado'];
+  if (!estados.includes(estado))
+    return res.status(400).json({ error: 'Estado inválido' });
+  const t = get('SELECT * FROM tramites WHERE id = ?', [req.params.id]);
+  if (!t) return res.status(404).json({ error: 'No encontrado' });
+  run(`UPDATE tramites SET estado=?, updated_at=datetime('now') WHERE id=?`,
+    [estado, req.params.id]);
+  run('INSERT INTO actividades (tramite_id, usuario_id, descripcion, tipo) VALUES (?, ?, ?, ?)',
+    [req.params.id, req.usuario.id,
+     `Estado: ${estado}${notas?' — '+notas:''}`, 'cambio_estado']);
+  res.json({ mensaje: 'Estado actualizado' });
+});
+
+router.post('/:id/actividades', authMiddleware, (req, res) => {
+  const { descripcion } = req.body;
+  if (!descripcion) return res.status(400).json({ error: 'Descripción requerida' });
+  run('INSERT INTO actividades (tramite_id, usuario_id, descripcion, tipo) VALUES (?, ?, ?, ?)',
+    [req.params.id, req.usuario.id, descripcion, 'nota']);
+  res.status(201).json({ mensaje: 'Actividad registrada' });
+});
+
+module.exports = router;
