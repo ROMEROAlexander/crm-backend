@@ -1,7 +1,8 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const { getDb } = require('./db/database');
+const bcrypt = require('bcryptjs');
+const { getDb, get, run } = require('./db/database');
 
 const authRoutes = require('./routes/auth');
 const usuariosRoutes = require('./routes/usuarios');
@@ -30,8 +31,21 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Error interno del servidor' });
 });
 
+async function crearSupervisorInicial() {
+  const existe = get("SELECT id FROM usuarios WHERE email = 'supervisor@asesoria.com'");
+  if (!existe) {
+    const hash = await bcrypt.hash('Admin2026!', 10);
+    run(
+      'INSERT INTO usuarios (nombre, email, password_hash, rol) VALUES (?, ?, ?, ?)',
+      ['Supervisor', 'supervisor@asesoria.com', hash, 'supervisor']
+    );
+    console.log('Usuario supervisor creado.');
+  }
+}
+
 async function start() {
   await getDb();
+  await crearSupervisorInicial();
   app.listen(PORT, () => {
     console.log(`CRM corriendo en puerto ${PORT}`);
   });
