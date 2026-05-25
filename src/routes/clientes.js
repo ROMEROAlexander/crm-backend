@@ -63,4 +63,18 @@ router.put('/:id', authMiddleware, (req, res) => {
   const { nombre, tipo, nit, nrc, giro, telefono, email, municipio, notas, asesor_id } = req.body;
   const nuevoAsesor = req.usuario.rol === 'supervisor'
     ? (asesor_id || c.asesor_id) : c.asesor_id;
-  run(`UPDA
+  run(`UPDATE clientes SET nombre=?, tipo=?, nit=?, nrc=?, giro=?, telefono=?,
+       email=?, municipio=?, notas=?, asesor_id=?, updated_at=datetime('now') WHERE id=?`,
+    [nombre||c.nombre, tipo||c.tipo, nit||c.nit, nrc!==undefined?nrc:c.nrc,
+     giro||c.giro, telefono!==undefined?telefono:c.telefono,
+     email!==undefined?email:c.email, municipio!==undefined?municipio:c.municipio,
+     notas!==undefined?notas:c.notas, nuevoAsesor, req.params.id]);
+  res.json({ mensaje: 'Cliente actualizado' });
+});
+
+router.delete('/:id', authMiddleware, (req, res) => {
+  run('UPDATE clientes SET activo = 0 WHERE id = ?', [req.params.id]);
+  res.json({ mensaje: 'Cliente desactivado' });
+});
+
+module.exports = router;
